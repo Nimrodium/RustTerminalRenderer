@@ -18,7 +18,7 @@ use crate::sprite::{compile_sprite, Metadata, Sprite, Spritearray};
 use std::collections::HashMap;
 
 use crossterm::{execute, style::Color, terminal};
-use stack::push_render;
+use stack::{init_FrameBuffer, push_render, FrameBuffer, FrameBuffer_write};
 use std::io::{self, Write};
 
 fn main() -> io::Result<()> {
@@ -35,7 +35,7 @@ fn main() -> io::Result<()> {
     ";
 
     let smily_metadata: Metadata = Metadata {
-        color_map: HashMap::from([('░', Color::Blue), ('▓', Color::White)]),
+        color_map: HashMap::from([('░', Color::Black), ('▓', Color::Magenta)]),
         height: 5,
         width: 5,
         tag: None,
@@ -45,6 +45,12 @@ fn main() -> io::Result<()> {
         Err(why) => panic!("aspect ratio error {}", why),
         Ok(sprite) => sprite,
     };
-    push_render(compiled_sprite.pixels);
+
+    let mut framebuffer: FrameBuffer = match init_FrameBuffer(50, 150, Color::White) {
+        Err(why) => panic!("framebuffer init failed: {}", why),
+        Ok(framebuffer) => framebuffer,
+    };
+    FrameBuffer_write(10, 15, 1, compiled_sprite.pixels, &mut framebuffer);
+    push_render(framebuffer.framebuffer);
     Ok(())
 }
