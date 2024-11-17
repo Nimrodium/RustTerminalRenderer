@@ -57,7 +57,7 @@ fn main() -> io::Result<()> {
         let frame_duration = time::Duration::from_millis(10);
         thread::sleep(frame_duration);
         execute!(stdout, terminal::Clear(terminal::ClearType::All)).unwrap();
-        push_render(framebuffer.framebuffer);
+        push_render(framebuffer.buffer);
     }
     Ok(())
 }

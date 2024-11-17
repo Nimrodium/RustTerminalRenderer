@@ -15,8 +15,13 @@ const PIXEL_ELEMENT: &str = "██";
 
 ///FrameBuffer type holds worldspace before commit
 pub type SpriteVector = Vec<Pixel>;
+pub struct Layer {
+    pub buffer: Vec<Pixel>,
+    height: u16,
+    width: u16,
+}
 pub struct FrameBuffer {
-    pub framebuffer: Vec<Pixel>,
+    pub buffer: Vec<Pixel>,
     height: u16,
     width: u16,
 }
@@ -41,7 +46,7 @@ pub fn init_framebuffer(
 ) -> Result<FrameBuffer, String> {
     //let mut framebuffer: FrameBuffer = vec![];
     let mut framebuffer: FrameBuffer = FrameBuffer {
-        framebuffer: vec![],
+        buffer: vec![],
         height: y_aspect,
         width: x_aspect,
     };
@@ -54,11 +59,11 @@ pub fn init_framebuffer(
                 color: bg_color,
                 object_id: 0,
             };
-            framebuffer.framebuffer.push(working_pixel);
+            framebuffer.buffer.push(working_pixel);
         }
     }
 
-    let expected = framebuffer.framebuffer.len();
+    let expected = framebuffer.buffer.len();
     let real = (x_aspect * y_aspect) as usize;
     if expected != real {
         let why = format!(
@@ -114,7 +119,7 @@ pub fn framebuffer_write(
     for sprite_pixel in sprite_worldspace.iter() {
         let raw_index: usize =
             ((framebuffer.width as usize) * sprite_pixel.y as usize) + sprite_pixel.x as usize;
-        let frame_pixel_opt = framebuffer.framebuffer.get_mut(raw_index);
+        let frame_pixel_opt = framebuffer.buffer.get_mut(raw_index);
 
         if let Some(frame_pixel) = frame_pixel_opt {
             frame_pixel.color = sprite_pixel.color;
@@ -133,4 +138,81 @@ pub fn push_render(frame: Vec<Pixel>) {
         draw_pixel(pixel.x, pixel.y, pixel.color, &mut stdout, i as i16).unwrap();
     }
     stdout.flush().unwrap();
+}
+
+//Render API
+
+/*
+clear
+update
+
+*/
+///# Renderer
+///## RustTermRenderer Render Engine API
+struct Renderer {
+    basebuffer: FrameBuffer,
+    stdout: std::io::Stdout,
+}
+
+impl Renderer {
+    fn new(x: u16, y: u16, color: Color) -> Self {
+        Renderer {
+            basebuffer: init_framebuffer(x, y, color).unwrap(),
+            stdout: std::io::stdout(),
+        }
+    }
+    ///# Clear
+    ///## Clears Screen
+    fn clear() {
+        println!("clear");
+    }
+    ///# Update
+    ///## Pushes changes made to the buffers to the screen
+    fn update() {
+        println!("will update the view with the staged changes");
+    }
+    ///# Add Layer
+    ///## Adds a new layer entry in the render pipeline
+    fn add_layer(layer_id: u16, pos: u16) {
+        println!("will create a new layer entry in the render queue");
+    }
+    ///# Remove Layer
+    ///## Removes a layer entry in the render pipeline
+    fn remove_layer(layer_id: u16) {
+        println!("will remove the specified layer");
+    }
+    ///# Set Layer Visibility
+    ///## Changes if the layer is included in the render pipeline
+    fn set_layer_visibility(layer_id: u16, visible: bool) {
+        println!("will set layer rendering, even pixels with render True will not render if the layer is not visible");
+    }
+    ///# Move layer
+    ///## Moves a layers position in the render pipeline
+    fn move_layer(layer_id: u16, new_pos: u16) {
+        println!("changes layer queue sequence");
+    }
+    ///# Direct Write
+    ///## Directly writes to a pixel in the specified layer, bypassing sprite logic
+    fn direct_write(x: u16, y: u16, color: Color, layer_id: u16) {
+        println!("Directly writes to a pixel, bypassing sprite logic");
+    }
+    ///# Draw Sprite
+    ///## Draws a Sprite to the layer at the specified location
+    fn draw_sprite(x: u16, y: u16, sprite: Sprite, layer: u16) {
+        println!("will write the sprite vector to the specified layer");
+    }
+    ///# Reset
+    ///## Resets the Renderer
+    ///upon invoking the layer queue is cleared and the basebuffer is reinitialized
+    fn reset() {
+        println!(
+            "will reset the renderer by deleting all renders and reinitializing the basebuffer"
+        );
+    }
+    ///# Debug Mode
+    ///## Toggles debug logging
+    ///when enabled the rendering engine will write logs to renderer.log in the directory of the compiled executable
+    fn debug_mode(toggle: bool) {
+        println!("toggles debug logging");
+    }
 }
