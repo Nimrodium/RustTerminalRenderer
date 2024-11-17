@@ -1,1 +1,0 @@
-/home/kyle/CodeSync/rust/rs_cli_renderer/target/debug/rs_cli_renderer: /home/kyle/CodeSync/rust/rs_cli_renderer/src/main.rs /home/kyle/CodeSync/rust/rs_cli_renderer/src/sprite.rs /home/kyle/CodeSync/rust/rs_cli_renderer/src/stack.rs
