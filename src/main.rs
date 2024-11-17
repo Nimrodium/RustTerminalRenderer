@@ -3,11 +3,10 @@
 //rust rewrite of terminal 2d rendering engine in python.
 //also going to try to do multiple files for this one
 
-//main rs -- init game
-//renderpipe.rs -- graphics stack logic
-//pixel.rs -- pixel logic?
-//game.rs -- chrome dino game or really anything, doesnt matter ig.
-//input.rs -- handling real input that seems to be nearly impossible in python+wayland
+//main -- entrypoint
+//stack -- renderstack logic for actually writing to frames
+//sprite -- handling of sprite actions
+//game -- loadable game module
 //https://stackoverflow.com/questions/35671985/how-do-i-get-keyboard-input-without-the-user-pressing-the-enter-key
 
 //possible libs to use?
@@ -16,9 +15,10 @@ mod sprite;
 mod stack;
 use crate::sprite::{compile_sprite, Metadata, Sprite, Spritearray};
 use std::collections::HashMap;
+use std::{thread, time};
 
 use crossterm::{execute, style::Color, terminal};
-use stack::{init_FrameBuffer, push_render, FrameBuffer, FrameBuffer_write};
+use stack::{framebuffer_write, init_framebuffer, push_render, FrameBuffer};
 use std::io::{self, Write};
 
 fn main() -> io::Result<()> {
@@ -45,12 +45,19 @@ fn main() -> io::Result<()> {
         Err(why) => panic!("aspect ratio error {}", why),
         Ok(sprite) => sprite,
     };
+    for i in 0..100 {
+        let mut framebuffer: FrameBuffer = match init_framebuffer(50, 150, Color::White) {
+            Err(why) => panic!("framebuffer init failed: {}", why),
+            Ok(framebuffer) => framebuffer,
+        };
+        framebuffer_write(i, 4, 1, &compiled_sprite, &mut framebuffer);
+        //framebuffer_write(i + 20, i, 1, &compiled_sprite, &mut framebuffer);
 
-    let mut framebuffer: FrameBuffer = match init_FrameBuffer(50, 150, Color::White) {
-        Err(why) => panic!("framebuffer init failed: {}", why),
-        Ok(framebuffer) => framebuffer,
-    };
-    FrameBuffer_write(10, 15, 1, compiled_sprite.pixels, &mut framebuffer);
-    push_render(framebuffer.framebuffer);
+        //framerate
+        let frame_duration = time::Duration::from_millis(10);
+        thread::sleep(frame_duration);
+        execute!(stdout, terminal::Clear(terminal::ClearType::All)).unwrap();
+        push_render(framebuffer.framebuffer);
+    }
     Ok(())
 }

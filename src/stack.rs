@@ -22,7 +22,8 @@ pub struct FrameBuffer {
 }
 
 ///Used to draw a pixel to the screen NOT framebuffer, this is for final commit
-pub fn draw_pixel(x: u16, y: u16, color: Color, stdout: &mut Stdout) -> io::Result<()> {
+pub fn draw_pixel(x: u16, y: u16, color: Color, stdout: &mut Stdout, i: i16) -> io::Result<()> {
+    //let element = format!("|{} ", i);
     queue!(
         stdout,
         cursor::MoveTo(x * 2, y),
@@ -31,12 +32,9 @@ pub fn draw_pixel(x: u16, y: u16, color: Color, stdout: &mut Stdout) -> io::Resu
 
     Ok(())
 }
-///# to_worldspace
-///## Translates sprite's positional data into worldspace
-///takes in the worldspace x and y (relative to the top left corner of the sprite) and returns the moved pixel vector
 
 ///renders blank framebuffer
-pub fn init_FrameBuffer(
+pub fn init_framebuffer(
     x_aspect: u16,
     y_aspect: u16,
     bg_color: Color,
@@ -72,23 +70,32 @@ pub fn init_FrameBuffer(
         Ok(framebuffer)
     }
 }
+///# to_worldspace
+///## Translates sprite's positional data into worldspace
+///takes in the worldspace x and y (relative to the top left corner of the sprite) and returns the moved pixel vector
 pub fn to_worldspace(
     x_world: u16,
     y_world: u16,
     layer_world: u16,
-    pixel_vector: SpriteVector,
+    sprite: &Sprite,
+    framebuffer: &FrameBuffer,
 ) -> SpriteVector {
     let mut pixels: SpriteVector = vec![];
 
-    for pixel in pixel_vector.iter() {
-        let working_pixel: Pixel = Pixel {
-            x: pixel.x + x_world,
-            y: pixel.y + y_world,
-            layer: layer_world,
-            color: pixel.color,
-            object_id: pixel.object_id,
+    for pixel in sprite.pixels.iter() {
+        let x_pixel = pixel.x + x_world;
+        let y_pixel = pixel.y + y_world;
+        //if these are higher than the x y aspect of framebuffer then skip creation
+        if (x_pixel < framebuffer.width) && (y_pixel < framebuffer.height) {
+            let working_pixel: Pixel = Pixel {
+                x: pixel.x + x_world,
+                y: pixel.y + y_world,
+                layer: layer_world,
+                color: pixel.color,
+                object_id: pixel.object_id,
+            };
+            pixels.push(working_pixel);
         };
-        pixels.push(working_pixel);
     }
     pixels
 }
@@ -96,14 +103,14 @@ pub fn to_worldspace(
 ///## writes a frame to terminal
 ///takes in any vector of pixels and prints to the terminal.
 
-pub fn FrameBuffer_write(
+pub fn framebuffer_write(
     x: u16,
     y: u16,
     layer: u16,
-    sprite_vector: SpriteVector,
+    sprite: &Sprite,
     framebuffer: &mut FrameBuffer,
 ) {
-    let sprite_worldspace = to_worldspace(x, y, layer, sprite_vector);
+    let sprite_worldspace = to_worldspace(x, y, layer, sprite, framebuffer);
     for sprite_pixel in sprite_worldspace.iter() {
         let raw_index: usize =
             ((framebuffer.width as usize) * sprite_pixel.y as usize) + sprite_pixel.x as usize;
@@ -122,8 +129,8 @@ pub fn FrameBuffer_write(
 pub fn push_render(frame: Vec<Pixel>) {
     let mut stdout = io::stdout();
     //execute!(stdout, terminal::Clear(terminal::ClearType::All)).unwrap();
-    for pixel in frame.iter() {
-        draw_pixel(pixel.x, pixel.y, pixel.color, &mut stdout).unwrap();
+    for (i, pixel) in frame.iter().enumerate() {
+        draw_pixel(pixel.x, pixel.y, pixel.color, &mut stdout, i as i16).unwrap();
     }
     stdout.flush().unwrap();
 }
