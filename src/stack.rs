@@ -134,15 +134,20 @@ pub fn to_worldspace(
     }
     pixels
 }
-///# push_render
-///## writes a frame to terminal
-///takes in any vector of pixels and prints to the terminal.
-
+///returns the raw (flattened) index of a value based on its x and y position.
+///returns `usize`.
+///# Parameters
+///- `width` : width aka maximum x value of a row of the structure.
+///- `x` : target position x coordinate.
+///- `y` : target position y coordinate.
+///# Example
+///```
+///let get_raw_index(5,4,2);
 fn get_raw_index(width: usize, x: usize, y: usize) -> usize {
     let raw_index: usize = width * y + x as usize;
     raw_index
 }
-
+/*
 pub fn framebuffer_write(
     x: u16,
     y: u16,
@@ -178,7 +183,7 @@ pub fn push_render(layer: Vec<Pixel>) {
         }
     }
     stdout.flush().unwrap();
-}
+}*/
 
 ///Renderer API
 impl FrameBuffer {
@@ -221,7 +226,12 @@ impl FrameBuffer {
             }
         }
     }
-    ///Translates a SpriteVector into a worldspace position
+    ///returns a transformed SpriteVector of a Sprite in a worldspace position
+    ///# Example
+    ///```
+    ///to_worldspace(10,15,dino);
+    ///```
+    ///returns SpriteVector of dino at worldspace position (10,15) (of sprite center).
     fn to_worldspace(&self, x_world: u16, y_world: u16, sprite: &Sprite) -> SpriteVector {
         let mut pixels: SpriteVector = vec![];
 
@@ -244,13 +254,13 @@ impl FrameBuffer {
     }
 }
 
-///# Renderer
-///## RustTermRenderer Render Engine API
-struct Renderer {
+///RustTermRenderer Rendering Engine API
+///used to interface with the rendering engine
+pub struct Renderer {
     ///buffer to write all screen changes to before committing to display
     buffer: FrameBuffer,
     ///data structure to organize the sequence in which to write layers to the framebuffer,
-    layerstack: HashMap<u16, Layer>,
+    layerstack: HashMap<LayerID, Layer>,
     ///stdout of the Renderer
     stdout: std::io::Stdout,
     ///framerate of Renderer, default value is 25fps (40ms)
@@ -265,30 +275,70 @@ enum ShiftDirection {
 }
 
 impl Renderer {
-    fn new(x: u16, y: u16, color: Color) -> Self {
+    ///returns a new instance of the Renderer
+    ///# Parameters
+    ///- `width` : length of row (x aspect)
+    ///- `height` : number of rows (y aspect)
+    ///- `bg_color` : color of background
+    ///# Example
+    ///```
+    ///let engine : Renderer = Renderer::new(50,50,Color::Black);
+    ///```
+    ///engine is now an instance of Renderer with a size of 50x50px
+    pub fn new(width: u16, height: u16, bg_color: Color) -> Self {
         Renderer {
-            buffer: FrameBuffer::new(x, y, color),
+            buffer: FrameBuffer::new(width, height, bg_color),
             layerstack: HashMap::new(),
             stdout: std::io::stdout(),
             framerate: time::Duration::from_millis(40),
             debug: false,
         }
     }
-    ///# Clear
-    ///## Clears Terminal
+    /// Clears terminal display
+    /// analogous to POSIX `clear` and DOS `cls`
     fn clear() {
         print!("\x1b[2J\x1b[H");
     }
     ///sets framerate interval in milliseconds,
-    /// default is 25fps (40ms)
-    fn set_framerate(&mut self, new_framerate: u64) {
+    ///default is 25fps (40ms)
+    ///# Parameters
+    ///- `new_framerate` : frame display duration in milliseconds
+    ///# Examples
+    ///```
+    /// set_framerate(100);
+    ///```
+    ///sets framerate to 10fps (100ms)
+    ///
+    ///```
+    ///set_framerate(40);
+    ///```
+    ///sets framerate to 25fps (40ms)
+    ///
+    ///```
+    ///set_framerate(16);
+    ///```
+    ///sets framerate to 60fps (16ms)
+
+    pub fn set_framerate(&mut self, new_framerate: u64) {
         self.framerate = time::Duration::from_millis(new_framerate);
     }
     ///rasterizes (flattens) layers into the 2d framebuffer
+    ///often used before `push_render()`
+    ///# Example
+    ///```
+    ///layerstack_rasterize()
+    ///```
+    ///adds layer data to framebuffer
     fn layerstack_rasterize(self) {}
 
-    /// Pushes changes made to the buffer to the screen
-    fn render_update(&mut self) {
+    /// updates display by rasterizing layers then pushes framebuffer to the display,
+    /// then sleeps for the framerate interval
+    /// # Example:
+    /// ```
+    /// render_update();
+    /// ```
+
+    pub fn render_update(&mut self) {
         execute!(self.stdout, terminal::Clear(terminal::ClearType::All)).unwrap();
         //push_render(self.buffer.buffer.clone());
         //pushes render
@@ -296,6 +346,13 @@ impl Renderer {
         self.stdout.flush().unwrap();
         thread::sleep(self.framerate);
     }
+    /// pushes framebuffer to Display
+    /// by drawing all pixels in the framebuffer to the Display
+    /// # Example
+    /// ```
+    /// render_push();
+    /// ```
+    /// displays framebuffer
     fn render_push(&mut self) {
         for (i, pixel) in self.buffer.buffer.iter().enumerate() {
             if pixel.isrendered {
@@ -304,9 +361,15 @@ impl Renderer {
         }
     }
 
-    ///returns a mutable Layer from the renderqueue
+    ///returns a mutable Layer from the layerstack
     ///# Parameters
     /// - `id` : requested layerID
+    ///
+    /// # Example
+    /// ```
+    /// foreground : Layer = layer_fetch(2);
+    /// ```
+    ///foreground becomes a mutable reference to the layer with id 2
 
     fn layer_fetch(&mut self, id: LayerID) -> &mut Layer {
         if let Some(layer) = self.layerstack.get_mut(&id) {
@@ -333,7 +396,7 @@ impl Renderer {
     /// // This shifts all subsequent layers after `pos` in the layerstack by 1. then fills the void `pos` with the added layer
     /// ```
 
-    fn layer_add(layer_id: LayerID, pos: u16) {
+    pub fn layer_add(layer_id: LayerID, pos: u16) {
         println!("will create a new layer entry in the render queue");
     }
     /// Moves the specified layer to a new position in the layer stack.
@@ -352,10 +415,12 @@ impl Renderer {
     /// # Example
     /// ```
     /// layer_move(1, 0);
-    /// // Moves layer with ID 1 to position 0.
-    /// // This makes layer 1 the first layer to write to the framebuffer during rasterization.
+    /// Moves layer with ID 1 to position 0.
+    ///
     /// ```
-    fn layer_move(layer_id: LayerID, new_pos: u16) {
+    ///
+
+    pub fn layer_move(layer_id: LayerID, new_pos: u16) {
         println!("changes layer queue sequence");
     }
     /// Removes the specified layer from the layerstack.
@@ -375,14 +440,21 @@ impl Renderer {
     /// // Removes layer with ID 1.
     /// // This shifts all subsequent layers in the layerstack down by 1.
     /// ```
-    fn layer_remove(layer_id: LayerID) {
+    pub fn layer_remove(layer_id: LayerID) {
         println!("will remove the specified layer");
     }
-    ///# Set Layer Visibility
-    ///## Changes if the layer is included in the render pipeline
-    fn layer_set_visibility(&mut self, layer_id: LayerID, visible: bool) {
+    ///Toggles layer visibilty
+    ///# Parameters
+    ///- `layer_id` : target layer
+    ///- `isvisible` : boolean to decide whether to include layer in rasterization
+    ///# Example
+    ///```
+    ///layer_set_visibility(1,false);
+    ///```
+    ///`layer_id` 1 is not included in rasterization
+    pub fn layer_set_visibility(&mut self, layer_id: LayerID, isvisible: bool) {
         let layer = self.layer_fetch(layer_id);
-        layer.isRendered = visible;
+        layer.isRendered = isvisible;
     }
 
     /// Moves layers relative to the starting position.
@@ -412,20 +484,37 @@ impl Renderer {
         }
     }
 
-    ///# Draw Sprite
-    ///## Draws a Sprite to the layer at the specified location
-    fn layer_write_sprite(&mut self, x: u16, y: u16, sprite: Sprite, layer_id: LayerID) -> () {
+    ///writes a Sprite's SpriteVector to the target layer
+    ///# Parameters
+    ///- `x` : target worldspace x position of center of Sprite
+    ///- `y` : target worldspace y position of center of Sprite
+    ///- `sprite` : sprite template to write to screen
+    ///- `layer-id` : target layer
+    ///# Example
+    ///```
+    ///layer_write_sprite(10,15,Dino,1);
+    ///```
+    ///writes the `dino` Sprite to (10,15) on layer 1.
+
+    pub fn layer_write_sprite(&mut self, x: u16, y: u16, sprite: Sprite, layer_id: LayerID) -> () {
         println!("will write the sprite vector to the specified layer");
         let worldspace_spritevector = self.buffer.to_worldspace(x, y, &sprite);
         let layer = self.layer_fetch(layer_id);
         layer.buffer.push(worldspace_spritevector);
     }
 
-    ///# Direct Write
-    ///## Directly writes to a pixel in the specified layer, bypassing sprite logic
-    /// this function overrites the specified pixel, if another sprite later on in the Layer
-    /// contains the same data for a pixel the direct write pixel will be overwritten as well
-    fn layer_direct_write(&mut self, x: u16, y: u16, color: Color, layer_id: LayerID) {
+    ///directly writes a pixel to the target layer
+    ///# Parameters
+    ///- `x` : target worldspace x position.
+    ///- `y` : target worldspace y position.
+    ///- `color` : color of pixel
+    ///- `layer_id` : target layer
+    ///# Example
+    ///```
+    ///layer_direct_write(10,15,Color::Green,1);
+    ///```
+    ///directly writes a green pixel to (10,15) of layer 1.
+    pub fn layer_direct_write(&mut self, x: u16, y: u16, color: Color, layer_id: LayerID) {
         let layer = self.layer_fetch(layer_id);
         let new_pixel: Pixel = Pixel {
             x: x,
@@ -436,10 +525,16 @@ impl Renderer {
         layer.buffer.push(vec![new_pixel]);
     }
 
-    ///# Debug Mode
-    ///## Toggles debug logging
-    ///when enabled the rendering engine will write logs to renderer.log in the directory of the compiled executable
-    fn debug_mode(&mut self, toggle: bool) {
+    ///Enables debug logging
+    ///writes status updates to renderer.log
+    ///# Parameters
+    ///- `toggle` : boolean to turn on/off logging
+    ///# Example
+    ///```
+    /// debug_mode(true);
+    ///```
+    ///enables debug logging
+    pub fn debug_mode(&mut self, toggle: bool) {
         println!("toggles debug logging");
     }
 }

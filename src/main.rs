@@ -18,7 +18,7 @@ use std::collections::HashMap;
 use std::{thread, time};
 
 use crossterm::{execute, style::Color, terminal};
-use stack::{framebuffer_write, init_layer, push_render, FrameBuffer};
+use stack::Renderer;
 use std::io::{self, Write};
 
 fn main() -> io::Result<()> {
