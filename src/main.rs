@@ -13,12 +13,12 @@
 //crossterm
 mod sprite;
 mod stack;
-use crate::sprite::{compile_sprite, Metadata, Sprite, Spritearray};
+use crate::sprite::{compile_sprite, Metadata, Sprite, SpriteSource};
 use std::collections::HashMap;
 use std::{thread, time};
 
 use crossterm::{execute, style::Color, terminal};
-use stack::{framebuffer_write, init_framebuffer, push_render, FrameBuffer};
+use stack::{framebuffer_write, init_layer, push_render, FrameBuffer};
 use std::io::{self, Write};
 
 fn main() -> io::Result<()> {
@@ -26,7 +26,7 @@ fn main() -> io::Result<()> {
     let mut stdout = io::stdout();
     execute!(stdout, terminal::Clear(terminal::ClearType::All))?;
 
-    let smiley_sprite: Spritearray = "
+    let smiley_sprite: SpriteSource = "
         ░░▓▓░
         ▓░░░▓
         ░░░▓▓
@@ -36,6 +36,7 @@ fn main() -> io::Result<()> {
 
     let smily_metadata: Metadata = Metadata {
         color_map: HashMap::from([('░', Color::Black), ('▓', Color::Magenta)]),
+        transparent: 'T',
         height: 5,
         width: 5,
         tag: None,
@@ -45,8 +46,10 @@ fn main() -> io::Result<()> {
         Err(why) => panic!("aspect ratio error {}", why),
         Ok(sprite) => sprite,
     };
-    for i in 0..100 {
-        let mut framebuffer: FrameBuffer = match init_framebuffer(50, 150, Color::White) {
+
+    //raw calls
+    for i in 0..1 {
+        let mut framebuffer: FrameBuffer = match init_layer(50, 150, Color::White, true) {
             Err(why) => panic!("framebuffer init failed: {}", why),
             Ok(framebuffer) => framebuffer,
         };
@@ -59,5 +62,6 @@ fn main() -> io::Result<()> {
         execute!(stdout, terminal::Clear(terminal::ClearType::All)).unwrap();
         push_render(framebuffer.buffer);
     }
+
     Ok(())
 }
