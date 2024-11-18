@@ -14,8 +14,6 @@ pub struct Pixel {
     //pub layer: u16,
     /// color of pixel
     pub color: Color,
-    /// might be deprecated
-    pub object_id: i32,
     ///flag stating wether to render the pixel
     pub isrendered: bool,
 }
@@ -104,7 +102,6 @@ pub fn compile_sprite(
             y: y as u16,
             //layer: 1,
             color: *metadata.color_map.get(&pixel).unwrap(),
-            object_id: id,
             isrendered: isrendered_bool,
         };
 

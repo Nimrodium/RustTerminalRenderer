@@ -7,8 +7,8 @@ use crossterm::{
     style::{self, Color, Stylize},
     terminal,
 };
-use std::fs;
-use std::path::Path;
+//use std::fs;
+//use std::path::Path;
 use std::{
     collections::HashMap,
     io::{self, Stdout, Write},
@@ -20,14 +20,14 @@ static DEBUG: bool = false;
 
 //static DEBUGFILE: File = File::Open()
 
-macro_rules! debug {
+/*macro_rules! debug {
     (msg) => {
         if DEBUG {
             let logfile: File = File::Open(Path::new("Renderstack.log"));
             logfile.wri
         }
     };
-}
+}*/
 
 ///string to represent each pixel by.
 const PIXEL_ELEMENT: &str = "██";
@@ -41,6 +41,7 @@ pub struct Layer {
     height: u16,
     width: u16,
     queue_pos: u16,
+    isRendered: bool,
 }
 #[derive(Clone)]
 pub struct FrameBuffer {
@@ -83,7 +84,6 @@ pub fn init_layer(
                 y: y_framebuffer,
                 //layer: 0,
                 color: bg_color,
-                object_id: 0,
                 isrendered: true,
             };
             framebuffer.buffer.push(working_pixel);
@@ -124,7 +124,6 @@ pub fn to_worldspace(
                 y: pixel.y + y_world,
                 //layer: layer_world,
                 color: pixel.color,
-                object_id: pixel.object_id,
                 isrendered: pixel.isrendered,
             };
             pixels.push(working_pixel);
@@ -160,7 +159,6 @@ pub fn framebuffer_write(
         if let Some(frame_pixel) = frame_pixel_opt {
             frame_pixel.color = sprite_pixel.color;
             //frame_pixel.layer = sprite_pixel.layer;
-            frame_pixel.object_id = sprite_pixel.object_id;
         } else {
             println!("Framebuffer does not contain referenced pixel, ignoring...");
         }
@@ -179,14 +177,7 @@ pub fn push_render(layer: Vec<Pixel>) {
     stdout.flush().unwrap();
 }
 
-//Render API
-
-/*
-clear
-update
-
-*/
-
+///Renderer API
 impl FrameBuffer {
     ///initializes framebuffer
     fn new(x: u16, y: u16, color: Color) -> Self {
@@ -202,8 +193,6 @@ impl FrameBuffer {
 
             if let Some(frame_pixel) = frame_pixel_opt {
                 frame_pixel.color = sprite_pixel.color;
-                //frame_pixel.layer = sprite_pixel.layer;
-                frame_pixel.object_id = sprite_pixel.object_id;
             } else {
                 println!("Framebuffer does not contain referenced pixel, ignoring...");
             }
@@ -229,7 +218,6 @@ impl FrameBuffer {
                     y: pixel.y + y_world,
                     //layer: layer_world,
                     color: pixel.color,
-                    object_id: pixel.object_id,
                     isrendered: pixel.isrendered,
                 };
                 pixels.push(working_pixel);
@@ -246,6 +234,7 @@ struct Renderer {
     buffer: FrameBuffer,
     ///hashmap of layers referenced by their ID, render order is determined by their render_pos value
     renderqueue: HashMap<u16, Layer>,
+    ///stdout of the Renderer
     stdout: std::io::Stdout,
     ///framerate of Renderer, default value is 25fps (40ms)
     framerate: time::Duration,
@@ -268,19 +257,35 @@ impl Renderer {
     fn clear() {
         print!("\x1b[2J\x1b[H");
     }
-    ///sets framerate interval in milliseconds
+    ///sets framerate interval in milliseconds,
     /// default is 25fps (40ms)
     fn set_framerate(&mut self, new_framerate: u64) {
         self.framerate = time::Duration::from_millis(new_framerate);
     }
+    ///commits layers to the framebuffer to prepare for render push
+    fn compose_frame(self) {}
     ///# Update
-    ///## Pushes changes made to the buffers to the screen
+    ///## Pushes changes made to the buffer to the screen
     fn update(&mut self) {
-        println!("will update the view with the staged changes");
-
         execute!(self.stdout, terminal::Clear(terminal::ClearType::All)).unwrap();
-        push_render(self.buffer.buffer.clone());
+        //push_render(self.buffer.buffer.clone());
+        //pushes render
+        for (i, pixel) in self.buffer.buffer.iter().enumerate() {
+            if pixel.isrendered {
+                draw_pixel(pixel.x, pixel.y, pixel.color, &mut self.stdout, i as i16).unwrap();
+            }
+        }
+        self.stdout.flush().unwrap();
         thread::sleep(self.framerate);
+    }
+    fn push_render(&mut self) {}
+    ///returns a mutable Layer from the renderqueue
+    fn fetch_layer(&mut self, id: u16) -> &mut Layer {
+        if let Some(layer) = self.renderqueue.get_mut(&id) {
+            layer
+        } else {
+            panic!("[error] layer {} does not exist", id);
+        }
     }
     ///# Add Layer
     ///## Adds a new layer entry in the render pipeline
@@ -294,32 +299,37 @@ impl Renderer {
     }
     ///# Set Layer Visibility
     ///## Changes if the layer is included in the render pipeline
-    fn set_layer_visibility(layer_id: u16, visible: bool) {
-        println!("will set layer rendering, even pixels with render True will not render if the layer is not visible");
+    fn set_layer_visibility(&mut self, layer_id: u16, visible: bool) {
+        let layer = self.fetch_layer(layer_id);
+        layer.isRendered = visible;
     }
     ///# Move layer
     ///## Moves a layers position in the render pipeline
     fn move_layer(layer_id: u16, new_pos: u16) {
         println!("changes layer queue sequence");
     }
-    ///commits layers to the framebuffer to prepare for render push
-    fn compose_frame(self) {}
 
     ///# Direct Write
     ///## Directly writes to a pixel in the specified layer, bypassing sprite logic
-    fn direct_write(x: u16, y: u16, color: Color, layer_id: u16) {
-        println!("Directly writes to a pixel, bypassing sprite logic");
+    /// this function overrites the specified pixel, if another sprite later on in the Layer
+    /// contains the same data for a pixel the direct write pixel will be overwritten as well
+    fn direct_write(&mut self, x: u16, y: u16, color: Color, layer_id: u16) {
+        let layer = self.fetch_layer(layer_id);
+        let new_pixel: Pixel = Pixel {
+            x: x,
+            y: y,
+            color: color,
+            isrendered: true,
+        };
+        layer.buffer.push(vec![new_pixel]);
     }
     ///# Draw Sprite
     ///## Draws a Sprite to the layer at the specified location
-    fn write_sprite(&mut self, x: u16, y: u16, sprite: Sprite, layer: u16) -> () {
+    fn write_sprite(&mut self, x: u16, y: u16, sprite: Sprite, layer_id: u16) -> () {
         println!("will write the sprite vector to the specified layer");
-        let worldspace_spritevector = self.buffer.to_worldspace(x, y, layer, &sprite);
-        if let Some(layer) = self.renderqueue.get_mut(&layer) {
-            layer.buffer.push(worldspace_spritevector);
-        } else {
-            println!("[write_sprite][error] layer does not exist");
-        }
+        let worldspace_spritevector = self.buffer.to_worldspace(x, y, layer_id, &sprite);
+        let layer = self.fetch_layer(layer_id);
+        layer.buffer.push(worldspace_spritevector);
     }
     ///# Debug Mode
     ///## Toggles debug logging
