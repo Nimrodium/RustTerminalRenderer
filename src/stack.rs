@@ -49,7 +49,7 @@ pub struct Layerstack {
     stack: HashMap<LayerID, Layer>,
     framebuffer: FrameBuffer,
     sequence: Vec<LayerID>,
-    sequence_rebuild: bool,
+    sequence_rebuild_flag: bool,
 }
 
 pub struct Renderer {
@@ -156,7 +156,7 @@ impl Layerstack {
             stack: HashMap::new(),
             framebuffer: FrameBuffer::new(width, height, bg_color),
             sequence: vec![],
-            sequence_rebuild: true,
+            sequence_rebuild_flag: true,
             //this will cause the sequence to be initially built for the first frame
         }
     }
@@ -173,13 +173,21 @@ impl Layerstack {
         let sequence = self.sequence.clone();
         for id in sequence {
             let layer = {
-                let layer = self.fetch_mut(&id);
+                let layer = self.fetch(&id);
                 layer.clone() // Clone the layer data if needed.
             };
-
             if layer.is_rendered {
                 self.framebuffer.write(&layer);
             }
+        }
+    }
+
+    pub fn wipe_buffers(&mut self) {
+        for pixel in self.framebuffer.buffer.iter_mut() {
+            pixel.color = self.framebuffer.color;
+        }
+        for (_, layerbuffer) in self.stack.iter_mut() {
+            layerbuffer.buffer = vec![];
         }
     }
     ///returns a mutable Layer from the layerstack
@@ -219,6 +227,7 @@ impl Layerstack {
             }
         }
     }
+
     ///creates a new layer entry in the layerstack in the specified position, returns layerID
     ///# Parameters
     ///- `layer_id` : a new unique identification for the layer
@@ -338,7 +347,7 @@ impl Layerstack {
     /// - **Down**: Shifts all values higher than the starting position down by one,
     ///   closing the starting position in the case of a layer removal or move.
     fn shift(&mut self, starting_pos: LayerID, direction: ShiftDirection) {
-        self.sequence_rebuild = true;
+        self.sequence_rebuild_flag = true;
         for layer in self.stack.values_mut() {
             //if greater than starting pos
             if layer.stack_pos > starting_pos {
@@ -424,7 +433,7 @@ impl Renderer {
     }
     /// Clears terminal display
     /// analogous to POSIX `clear` and DOS `cls`
-    pub fn clear() {
+    pub fn clear(&self) {
         print!("\x1b[2J\x1b[H");
     }
     ///sets framerate interval in milliseconds,
@@ -461,7 +470,7 @@ impl Renderer {
 
     pub fn render_update(&mut self) {
         println!("updating screen...");
-        if self.layerstack.sequence_rebuild {
+        if self.layerstack.sequence_rebuild_flag {
             self.layerstack.rebuild_sequence();
         }
         execute!(self.stdout, terminal::Clear(terminal::ClearType::All)).unwrap();
@@ -470,6 +479,7 @@ impl Renderer {
         self.layerstack.rasterize();
         self.render_push();
         //self.stdout.flush().unwrap();
+        self.layerstack.wipe_buffers();
         thread::sleep(self.framerate);
     }
     /// pushes framebuffer to Display

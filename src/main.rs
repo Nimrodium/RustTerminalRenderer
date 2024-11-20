@@ -71,10 +71,18 @@ fn main() {
     let mut renderer = Renderer::new(50, 50, Color::White);
     let background = renderer.layerstack.add(0, 0);
     let foreground = renderer.layerstack.add(1, 1);
+    renderer.set_framerate(40);
 
-    for i in 0..100 {
-        renderer.layerstack.write_sprite(0 + 1, 25, &compiled_sprite, background);
-        renderer.layerstack.write_sprite(50 - 1, 25, &second_comp_sprite, foreground);
+    for i in 0..=1000 {
+        //renderer.layerstack.wipe_buffers();
+        renderer.layerstack.write_sprite(i + 1, i + 1, &compiled_sprite, background);
+        renderer.layerstack.write_sprite(
+            (30 as u16).saturating_sub(i),
+            (30 as u16).saturating_sub(i),
+            &second_comp_sprite,
+            foreground,
+        );
         renderer.render_update();
+        renderer.clear();
     }
 }
