@@ -46,7 +46,7 @@ fn main() -> io::Result<()> {
         Err(why) => panic!("aspect ratio error {}", why),
         Ok(sprite) => sprite,
     };
-
+    /*
     //raw calls
     for i in 0..1 {
         let mut framebuffer: FrameBuffer = match init_layer(50, 150, Color::White, true) {
@@ -62,6 +62,7 @@ fn main() -> io::Result<()> {
         execute!(stdout, terminal::Clear(terminal::ClearType::All)).unwrap();
         push_render(framebuffer.buffer);
     }
+    */
 
     Ok(())
 }
