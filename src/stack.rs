@@ -1,5 +1,5 @@
 //stack.rs
-use crate::sprite::{Pixel, Sprite};
+use crate::sprite::{x_pos, y_pos, Pixel, Sprite};
 use crossterm::{
     cursor, execute, queue,
     style::{self, Color, Stylize},
@@ -79,8 +79,8 @@ impl FrameBuffer {
         for y_framebuffer in 0..y {
             for x_framebuffer in 0..x {
                 let working_pixel: Pixel = Pixel {
-                    x: x_framebuffer,
-                    y: y_framebuffer,
+                    x: x_framebuffer as x_pos,
+                    y: y_framebuffer as y_pos,
                     //layer: 0,
                     color: color,
                     isrendered: true,
@@ -96,12 +96,15 @@ impl FrameBuffer {
         println!("writing Layer to FrameBuffer");
         for sprite_vector in layer.buffer.iter() {
             for sprite_pixel in sprite_vector.iter() {
-                let raw_index: usize =
-                    self.get_raw_index(sprite_pixel.x as usize, sprite_pixel.y as usize);
-                if let Some(buffer_pixel) = self.buffer.get_mut(raw_index) {
-                    buffer_pixel.color = sprite_pixel.color;
-                } else {
-                    println!("FrameBuffer does not contain referenced pixel");
+                if sprite_pixel.x >= 0 && sprite_pixel.y >= 0 {
+                    //converts to u16
+                    let raw_index: usize =
+                        self.get_raw_index(sprite_pixel.x as x_pos, sprite_pixel.y as y_pos);
+                    if let Some(buffer_pixel) = self.buffer.get_mut(raw_index) {
+                        buffer_pixel.color = sprite_pixel.color;
+                    } else {
+                        println!("FrameBuffer does not contain referenced pixel");
+                    }
                 }
             }
         }
@@ -112,7 +115,7 @@ impl FrameBuffer {
     ///to_worldspace(10,15,dino);
     ///```
     ///returns SpriteVector of dino at worldspace position (10,15) (of sprite center).
-    fn to_worldspace(&self, x_world: u16, y_world: u16, sprite: &Sprite) -> SpriteVector {
+    fn to_worldspace(&self, x_world: x_pos, y_world: y_pos, sprite: &Sprite) -> SpriteVector {
         println!("Converting Sprite to worldspace");
         let mut pixels: SpriteVector = vec![];
 
@@ -120,7 +123,7 @@ impl FrameBuffer {
             let x_pixel = pixel.x + x_world;
             let y_pixel = pixel.y + y_world;
             //if these are higher than the x y aspect of framebuffer then skip creation
-            if (x_pixel < self.width) && (y_pixel < self.height) {
+            if (x_pixel < self.width as i16) && (y_pixel < self.height as i16) {
                 let working_pixel: Pixel = Pixel {
                     x: pixel.x + x_world,
                     y: pixel.y + y_world,
@@ -142,8 +145,10 @@ impl FrameBuffer {
     ///# Example
     ///```
     ///let get_raw_index(5,4,2);
-    fn get_raw_index(&self, x: usize, y: usize) -> usize {
-        let raw_index: usize = self.width as usize * y + x as usize;
+
+    //TODO make return option or result if position does not exist
+    fn get_raw_index(&self, x: x_pos, y: x_pos) -> usize {
+        let raw_index: usize = self.width as usize * y as usize + x as usize;
         raw_index
     }
 }
@@ -373,7 +378,7 @@ impl Layerstack {
     ///```
     ///writes the `dino` Sprite to (10,15) on layer 1.
 
-    pub fn write_sprite(&mut self, x: u16, y: u16, sprite: &Sprite, layer_id: LayerID) -> () {
+    pub fn write_sprite(&mut self, x: x_pos, y: y_pos, sprite: &Sprite, layer_id: LayerID) -> () {
         println!("writing Sprite to layer (id : {})", layer_id);
         let worldspace_spritevector = self.framebuffer.to_worldspace(x, y, &sprite);
         let layer = self.fetch_mut(&layer_id);
@@ -391,7 +396,7 @@ impl Layerstack {
     ///layer_direct_write(10,15,Color::Green,1);
     ///```
     ///directly writes a green pixel to (10,15) of layer 1.
-    pub fn direct_write(&mut self, x: u16, y: u16, color: Color, layer_id: LayerID) {
+    pub fn direct_write(&mut self, x: x_pos, y: y_pos, color: Color, layer_id: LayerID) {
         println!("writing pixel to layer (id : {})", layer_id);
         let layer = self.fetch_mut(&layer_id);
         let new_pixel: Pixel = Pixel {
@@ -493,7 +498,7 @@ impl Renderer {
         println!("pushing FrameBuffer to display");
         for (_, pixel) in (self.layerstack.framebuffer.buffer).clone().iter().enumerate() {
             if pixel.isrendered {
-                self.draw_pixel(pixel.x, pixel.y, pixel.color).unwrap();
+                self.draw_pixel(pixel.x as u16, pixel.y as u16, pixel.color).unwrap();
             }
         }
     }

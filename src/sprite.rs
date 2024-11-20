@@ -3,13 +3,16 @@ use crossterm::style::Color;
 use regex::Regex;
 use std::collections::HashMap;
 
+pub type x_pos = i16;
+pub type y_pos = i16;
+
 ///struct to represent one pixel
 #[derive(Clone)]
 pub struct Pixel {
     ///x coordinate
-    pub x: u16,
+    pub x: x_pos,
     /// y coordinate
-    pub y: u16,
+    pub y: y_pos,
     ///// might be deprecated
     //pub layer: u16,
     /// color of pixel
@@ -98,8 +101,8 @@ pub fn compile_sprite(
 
         //define new pixel object
         let generated_pixel: Pixel = Pixel {
-            x: x as u16,
-            y: y as u16,
+            x: x as x_pos,
+            y: y as y_pos,
             //layer: 1,
             color: *metadata.color_map.get(&pixel).unwrap(),
             isrendered: isrendered_bool,

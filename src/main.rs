@@ -76,12 +76,7 @@ fn main() {
     for i in 0..=1000 {
         //renderer.layerstack.wipe_buffers();
         renderer.layerstack.write_sprite(i + 1, i + 1, &compiled_sprite, background);
-        renderer.layerstack.write_sprite(
-            (30 as u16).saturating_sub(i),
-            (30 as u16).saturating_sub(i),
-            &second_comp_sprite,
-            foreground,
-        );
+        renderer.layerstack.write_sprite(30 - i, 30 - i, &second_comp_sprite, foreground);
         renderer.render_update();
         renderer.clear();
     }
