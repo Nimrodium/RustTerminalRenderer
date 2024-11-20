@@ -1,12 +1,13 @@
 //stack.rs
-///# Stack Module
-///##   Handles commiting data to the terminal
 use crate::sprite::{Pixel, Sprite};
 use crossterm::{
     cursor, execute, queue,
     style::{self, Color, Stylize},
     terminal,
 };
+///# Stack Module
+///##   Handles commiting data to the terminal
+//use log::{info, warn};
 //use std::fs;
 //use std::path::Path;
 use std::{
@@ -18,17 +19,6 @@ use std::{thread, time};
 //▆
 static DEBUG: bool = false;
 
-//static DEBUGFILE: File = File::Open()
-
-/*macro_rules! debug {
-    (msg) => {
-        if DEBUG {
-            let logfile: File = File::Open(Path::new("Renderstack.log"));
-            logfile.wri
-        }
-    };
-}*/
-
 ///string to represent each pixel by.
 
 ///FrameBuffer type holds worldspace before commit
@@ -38,132 +28,12 @@ pub type SpriteVector = Vec<Pixel>;
 pub type LayerID = u16;
 //pub type Layer = Vec<Vec<Pixel>>;
 ///Represents a distinct grouping of `SpriteVectors` in 3d space
+#[derive(Clone)]
 pub struct Layer {
     pub buffer: Vec<SpriteVector>,
     stack_pos: u16,
     is_rendered: bool,
 }
-
-///Used to draw a pixel to the screen NOT framebuffer, this is for final commit
-
-///renders blank framebuffer
-/*
-pub fn init_layer(
-    x_aspect: u16,
-    y_aspect: u16,
-    bg_color: Color,
-    basebuffer: bool,
-) -> Result<FrameBuffer, String> {
-    //let mut framebuffer: FrameBuffer = vec![];
-    let mut framebuffer: FrameBuffer = FrameBuffer {
-        buffer: vec![],
-        color: bg_color,
-        height: y_aspect,
-        width: x_aspect,
-    };
-    for y_framebuffer in 0..y_aspect {
-        for x_framebuffer in 0..x_aspect {
-            let working_pixel: Pixel = Pixel {
-                x: x_framebuffer,
-                y: y_framebuffer,
-                //layer: 0,
-                color: bg_color,
-                isrendered: true,
-            };
-            framebuffer.buffer.push(working_pixel);
-        }
-    }
-
-    let expected = framebuffer.buffer.len();
-    let real = (x_aspect * y_aspect) as usize;
-    if expected != real {
-        let why = format!(
-            "Failed to define canvas\n    expected canvas length: {}\n    real canvas length: {}",
-            expected, real,
-        );
-        Err(why)
-    } else {
-        Ok(framebuffer)
-    }
-}
-///Translates sprite's positional data into worldspace
-///takes in the worldspace x and y (relative to the top left corner of the sprite) and returns the moved pixel vector
-pub fn to_worldspace(
-    x_world: u16,
-    y_world: u16,
-    sprite: &Sprite,
-    framebuffer: &FrameBuffer,
-) -> SpriteVector {
-    let mut pixels: SpriteVector = vec![];
-
-    for pixel in sprite.pixels.iter() {
-        let x_pixel = pixel.x + x_world;
-        let y_pixel = pixel.y + y_world;
-        //if these are higher than the x y aspect of framebuffer then skip creation
-        if (x_pixel < framebuffer.width) && (y_pixel < framebuffer.height) {
-            let working_pixel: Pixel = Pixel {
-                x: pixel.x + x_world,
-                y: pixel.y + y_world,
-                //layer: layer_world,
-                color: pixel.color,
-                isrendered: pixel.isrendered,
-            };
-            pixels.push(working_pixel);
-        };
-    }
-    pixels
-}
-*/
-///returns the raw (flattened) index of a value based on its x and y position.
-///returns `usize`.
-///# Parameters
-///- `width` : width aka maximum x value of a row of the structure.
-///- `x` : target position x coordinate.
-///- `y` : target position y coordinate.
-///# Example
-///```
-///let get_raw_index(5,4,2);
-fn get_raw_index(width: usize, x: usize, y: usize) -> usize {
-    let raw_index: usize = width * y + x as usize;
-    raw_index
-}
-/*
-pub fn framebuffer_write(
-    x: u16,
-    y: u16,
-    layer: LayerID,
-    sprite: &Sprite,
-    framebuffer: &mut FrameBuffer,
-) {
-    let sprite_worldspace = to_worldspace(x, y, sprite, framebuffer);
-    for sprite_pixel in sprite_worldspace.iter() {
-        let raw_index: usize = get_raw_index(
-            framebuffer.width as usize,
-            sprite_pixel.x as usize,
-            sprite_pixel.y as usize,
-        );
-        let frame_pixel_opt = framebuffer.buffer.get_mut(raw_index);
-
-        if let Some(frame_pixel) = frame_pixel_opt {
-            frame_pixel.color = sprite_pixel.color;
-            //frame_pixel.layer = sprite_pixel.layer;
-        } else {
-            println!("Framebuffer does not contain referenced pixel, ignoring...");
-        }
-    }
-}
-
-pub fn push_render(layer: Vec<Pixel>) {
-    let mut stdout = io::stdout();
-    //execute!(stdout, terminal::Clear(terminal::ClearType::All)).unwrap();
-
-    for (i, pixel) in layer.iter().enumerate() {
-        if pixel.isrendered {
-            draw_pixel(pixel.x, pixel.y, pixel.color, &mut stdout, i as i16).unwrap();
-        }
-    }
-    stdout.flush().unwrap();
-}*/
 
 ///RustTermRenderer Rendering Engine API
 ///used to interface with the rendering engine
@@ -175,7 +45,7 @@ pub struct FrameBuffer {
     width: u16,
 }
 /// collection of sprites to draw at a depth
-struct Layerstack {
+pub struct Layerstack {
     stack: HashMap<LayerID, Layer>,
     framebuffer: FrameBuffer,
     sequence: Vec<LayerID>,
@@ -184,25 +54,22 @@ struct Layerstack {
 
 pub struct Renderer {
     ///data structure to organize the sequence in which to write layers to the framebuffer,
-    layerstack: Layerstack,
-    /////cache of layer position sequence by id
-    //layerstack_sequence: Vec<LayerID>,
-    /////rebuild sequence flag
-    //layerstack_sequence_rebuild: bool,
-    pixel_element: String,
+    pub layerstack: Layerstack,
+    ///string to render each pixel as
+    pub pixel_element: String,
     ///stdout of the Renderer
     stdout: std::io::Stdout,
     ///framerate of Renderer, default value is 25fps (40ms)
-    framerate: time::Duration,
+    pub framerate: time::Duration,
     ///debug flag
-    debug: bool,
+    pub debug: bool,
 }
 
 //TODO might move to render_api.rs
 impl FrameBuffer {
     ///initializes framebuffer
     fn new(x: u16, y: u16, color: Color) -> Self {
-        //let mut framebuffer: FrameBuffer = vec![];
+        println!("initializing FrameBuffer instance");
         let mut framebuffer: FrameBuffer = FrameBuffer {
             buffer: vec![],
             color: color,
@@ -225,28 +92,12 @@ impl FrameBuffer {
     }
     ///write to framebuffer
     ///this function should only be called by the layerstack rasterizer during rasterization
-    fn write(&mut self, x: u16, y: u16, sprite: &Sprite) {
-        let sprite_worldspace = self.to_worldspace(x, y, sprite);
-        for sprite_pixel in sprite_worldspace.iter() {
-            let raw_index: usize =
-                ((self.width as usize) * sprite_pixel.y as usize) + sprite_pixel.x as usize;
-            let frame_pixel_opt = self.buffer.get_mut(raw_index);
-
-            if let Some(frame_pixel) = frame_pixel_opt {
-                frame_pixel.color = sprite_pixel.color;
-            } else {
-                println!("Framebuffer does not contain referenced pixel, ignoring...");
-            }
-        }
-    }
-    fn write_layer(&mut self, layer: &Layer) {
+    fn write(&mut self, layer: &Layer) {
+        println!("writing Layer to FrameBuffer");
         for sprite_vector in layer.buffer.iter() {
             for sprite_pixel in sprite_vector.iter() {
-                let raw_index: usize = get_raw_index(
-                    self.width as usize,
-                    sprite_pixel.x as usize,
-                    sprite_pixel.y as usize,
-                );
+                let raw_index: usize =
+                    self.get_raw_index(sprite_pixel.x as usize, sprite_pixel.y as usize);
                 if let Some(buffer_pixel) = self.buffer.get_mut(raw_index) {
                     buffer_pixel.color = sprite_pixel.color;
                 } else {
@@ -262,6 +113,7 @@ impl FrameBuffer {
     ///```
     ///returns SpriteVector of dino at worldspace position (10,15) (of sprite center).
     fn to_worldspace(&self, x_world: u16, y_world: u16, sprite: &Sprite) -> SpriteVector {
+        println!("Converting Sprite to worldspace");
         let mut pixels: SpriteVector = vec![];
 
         for pixel in sprite.pixels.iter() {
@@ -281,9 +133,25 @@ impl FrameBuffer {
         }
         pixels
     }
+    ///returns the raw (flattened) index of a value based on its x and y position.
+    ///returns `usize`.
+    ///# Parameters
+    ///- `width` : width aka maximum x value of a row of the structure.
+    ///- `x` : target position x coordinate.
+    ///- `y` : target position y coordinate.
+    ///# Example
+    ///```
+    ///let get_raw_index(5,4,2);
+    fn get_raw_index(&self, x: usize, y: usize) -> usize {
+        let raw_index: usize = self.width as usize * y + x as usize;
+        raw_index
+    }
 }
 impl Layerstack {
+    ///returns initialized layerstack
+
     fn new(width: u16, height: u16, bg_color: Color) -> Self {
+        println!("initializing Layerstack instance");
         Layerstack {
             stack: HashMap::new(),
             framebuffer: FrameBuffer::new(width, height, bg_color),
@@ -300,11 +168,17 @@ impl Layerstack {
     ///```
     ///adds layer data to framebuffer
 
-    fn layerstack_rasterize(&mut self, buffer: &mut FrameBuffer) {
-        for id in self.sequence.clone() {
-            let layer = self.layer_fetch_mut(&id);
+    fn rasterize(&mut self) {
+        println!("rasterizing layerstack");
+        let sequence = self.sequence.clone();
+        for id in sequence {
+            let layer = {
+                let layer = self.fetch_mut(&id);
+                layer.clone() // Clone the layer data if needed.
+            };
+
             if layer.is_rendered {
-                buffer.write_layer(&layer);
+                self.framebuffer.write(&layer);
             }
         }
     }
@@ -318,7 +192,7 @@ impl Layerstack {
     /// ```
     ///foreground becomes a mutable reference to the layer with id 2
 
-    fn layer_fetch_mut(&mut self, id: &LayerID) -> &mut Layer {
+    fn fetch_mut(&mut self, id: &LayerID) -> &mut Layer {
         if let Some(layer) = self.stack.get_mut(id) {
             layer
         } else {
@@ -326,7 +200,7 @@ impl Layerstack {
         }
     }
     /// Returns an immutable Layer from the layerstack
-    fn layer_fetch(&self, id: &LayerID) -> &Layer {
+    fn fetch(&self, id: &LayerID) -> &Layer {
         if let Some(layer) = self.stack.get(id) {
             layer
         } else {
@@ -334,6 +208,8 @@ impl Layerstack {
         }
     }
     fn rebuild_sequence(&mut self) {
+        println!("rebuilding layerstack sequence");
+
         self.sequence = vec![];
         for position in 0..self.stack.len() {
             for (id, layer) in self.stack.iter() {
@@ -343,7 +219,7 @@ impl Layerstack {
             }
         }
     }
-    ///creates a new layer entry in the layerstack in the specified position
+    ///creates a new layer entry in the layerstack in the specified position, returns layerID
     ///# Parameters
     ///- `layer_id` : a new unique identification for the layer
     ///- `pos` : position to insert new layer
@@ -361,8 +237,11 @@ impl Layerstack {
     /// // This shifts all subsequent layers after `pos` in the layerstack by 1. then fills the void `pos` with the added layer
     /// ```
 
-    pub fn layer_add(&mut self, layer_id: LayerID, pos: u16) {
-        println!("will create a new layer entry in the render queue");
+    pub fn add(&mut self, layer_id: LayerID, pos: u16) -> LayerID {
+        println!(
+            "adding new layer (id: {}) to layerstack at position {}",
+            layer_id, pos
+        );
         if self.stack.contains_key(&layer_id) {
             println!("error! layer already exists");
         }
@@ -373,8 +252,9 @@ impl Layerstack {
             is_rendered: true,
         };
 
-        self.layer_shift(pos, ShiftDirection::Up);
+        self.shift(pos, ShiftDirection::Up);
         self.stack.insert(layer_id, new_layer);
+        layer_id
     }
     /// Moves the specified layer to a new position in the layer stack.
     ///
@@ -395,13 +275,13 @@ impl Layerstack {
     /// ```
     /// Moves layer with ID 1 to position 0.
 
-    pub fn layer_move(&mut self, layer_id: LayerID, new_pos: u16) {
-        println!("changes layer queue sequence");
-        let old_pos = (self.layer_fetch(&layer_id)).stack_pos;
-        self.layer_shift(new_pos, ShiftDirection::Up);
-        let target_layer = self.layer_fetch_mut(&layer_id);
+    pub fn move_layer(&mut self, layer_id: LayerID, new_pos: u16) {
+        println!("moving layer (id: {}) to position {}", layer_id, new_pos);
+        let old_pos = (self.fetch(&layer_id)).stack_pos;
+        self.shift(new_pos, ShiftDirection::Up);
+        let target_layer = self.fetch_mut(&layer_id);
         target_layer.stack_pos = new_pos;
-        self.layer_shift(old_pos, ShiftDirection::Down);
+        self.shift(old_pos, ShiftDirection::Down);
     }
     /// Removes the specified layer from the layerstack.
     ///
@@ -420,11 +300,11 @@ impl Layerstack {
     /// // Removes layer with ID 1.
     /// // This shifts all subsequent layers in the layerstack down by 1.
     /// ```
-    pub fn layer_remove(&mut self, layer_id: LayerID) {
-        println!("will remove the specified layer");
-        let void_pos = (self.layer_fetch(&layer_id)).stack_pos;
+    pub fn remove(&mut self, layer_id: LayerID) {
+        println!("removing layer (id: {})", layer_id);
+        let void_pos = (self.fetch(&layer_id)).stack_pos;
         self.stack.remove(&layer_id);
-        self.layer_shift(void_pos, ShiftDirection::Down);
+        self.shift(void_pos, ShiftDirection::Down);
     }
     ///Toggles layer visibilty
     ///# Parameters
@@ -435,8 +315,12 @@ impl Layerstack {
     ///layer_set_visibility(1,false);
     ///```
     ///`layer_id` 1 is not included in rasterization
-    pub fn layer_set_visibility(&mut self, layer_id: LayerID, isvisible: bool) {
-        let layer = self.layer_fetch_mut(&layer_id);
+    pub fn set_visibility(&mut self, layer_id: LayerID, isvisible: bool) {
+        println!(
+            "setting layer (id : {}) visibility to : {}",
+            layer_id, isvisible
+        );
+        let layer = self.fetch_mut(&layer_id);
         layer.is_rendered = isvisible;
     }
 
@@ -453,7 +337,7 @@ impl Layerstack {
     ///
     /// - **Down**: Shifts all values higher than the starting position down by one,
     ///   closing the starting position in the case of a layer removal or move.
-    fn layer_shift(&mut self, starting_pos: LayerID, direction: ShiftDirection) {
+    fn shift(&mut self, starting_pos: LayerID, direction: ShiftDirection) {
         self.sequence_rebuild = true;
         for layer in self.stack.values_mut() {
             //if greater than starting pos
@@ -480,10 +364,10 @@ impl Layerstack {
     ///```
     ///writes the `dino` Sprite to (10,15) on layer 1.
 
-    pub fn layer_write_sprite(&mut self, x: u16, y: u16, sprite: Sprite, layer_id: LayerID) -> () {
-        println!("will write the sprite vector to the specified layer");
+    pub fn write_sprite(&mut self, x: u16, y: u16, sprite: &Sprite, layer_id: LayerID) -> () {
+        println!("writing Sprite to layer (id : {})", layer_id);
         let worldspace_spritevector = self.framebuffer.to_worldspace(x, y, &sprite);
-        let layer = self.layer_fetch_mut(&layer_id);
+        let layer = self.fetch_mut(&layer_id);
         layer.buffer.push(worldspace_spritevector);
     }
 
@@ -498,8 +382,9 @@ impl Layerstack {
     ///layer_direct_write(10,15,Color::Green,1);
     ///```
     ///directly writes a green pixel to (10,15) of layer 1.
-    pub fn layer_direct_write(&mut self, x: u16, y: u16, color: Color, layer_id: LayerID) {
-        let layer = self.layer_fetch_mut(&layer_id);
+    pub fn direct_write(&mut self, x: u16, y: u16, color: Color, layer_id: LayerID) {
+        println!("writing pixel to layer (id : {})", layer_id);
+        let layer = self.fetch_mut(&layer_id);
         let new_pixel: Pixel = Pixel {
             x: x,
             y: y,
@@ -526,10 +411,12 @@ impl Renderer {
     ///```
     ///engine is now an instance of Renderer with a size of 50x50px
     pub fn new(width: u16, height: u16, bg_color: Color) -> Self {
+        println!("initializing new Renderer instance");
         Renderer {
             layerstack: Layerstack::new(width, height, bg_color),
             //layerstack_sequence: vec![],
             //layerstack_sequence_rebuild: true,
+            pixel_element: "██".to_string(),
             stdout: std::io::stdout(),
             framerate: time::Duration::from_millis(40),
             debug: false,
@@ -537,7 +424,7 @@ impl Renderer {
     }
     /// Clears terminal display
     /// analogous to POSIX `clear` and DOS `cls`
-    fn clear() {
+    pub fn clear() {
         print!("\x1b[2J\x1b[H");
     }
     ///sets framerate interval in milliseconds,
@@ -561,6 +448,7 @@ impl Renderer {
     ///sets framerate to 60fps (16ms)
 
     pub fn set_framerate(&mut self, new_framerate: u64) {
+        println!("setting framerate to {}ms", new_framerate);
         self.framerate = time::Duration::from_millis(new_framerate);
     }
 
@@ -572,11 +460,16 @@ impl Renderer {
     /// ```
 
     pub fn render_update(&mut self) {
+        println!("updating screen...");
+        if self.layerstack.sequence_rebuild {
+            self.layerstack.rebuild_sequence();
+        }
         execute!(self.stdout, terminal::Clear(terminal::ClearType::All)).unwrap();
         //push_render(self.buffer.buffer.clone());
         //pushes render
+        self.layerstack.rasterize();
         self.render_push();
-        self.stdout.flush().unwrap();
+        //self.stdout.flush().unwrap();
         thread::sleep(self.framerate);
     }
     /// pushes framebuffer to Display
@@ -587,19 +480,19 @@ impl Renderer {
     /// ```
     /// displays framebuffer
     fn render_push(&mut self) {
-        for (i, pixel) in self.layerstack.framebuffer.buffer.iter().enumerate() {
+        println!("pushing FrameBuffer to display");
+        for (_, pixel) in (self.layerstack.framebuffer.buffer).clone().iter().enumerate() {
             if pixel.isrendered {
-                Renderer::draw_pixel(pixel.x, pixel.y, pixel.color, &mut self.stdout, i as i16)
-                    .unwrap();
+                self.draw_pixel(pixel.x, pixel.y, pixel.color).unwrap();
             }
         }
     }
-    fn draw_pixel(x: u16, y: u16, color: Color, stdout: &mut Stdout, i: i16) -> io::Result<()> {
+    fn draw_pixel(&mut self, x: u16, y: u16, color: Color) -> io::Result<()> {
         //let element = format!("|{} ", i);
         queue!(
-            stdout,
+            self.stdout,
             cursor::MoveTo(x * 2, y),
-            style::PrintStyledContent(PIXEL_ELEMENT.with(color))
+            style::PrintStyledContent(self.pixel_element.clone().with(color))
         )?;
 
         Ok(())

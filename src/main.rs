@@ -21,10 +21,8 @@ use crossterm::{execute, style::Color, terminal};
 use stack::Renderer;
 use std::io::{self, Write};
 
-fn main() -> io::Result<()> {
+fn main() {
     println!("main");
-    let mut stdout = io::stdout();
-    execute!(stdout, terminal::Clear(terminal::ClearType::All))?;
 
     let smiley_sprite: SpriteSource = "
         ░░▓▓░
@@ -41,28 +39,42 @@ fn main() -> io::Result<()> {
         width: 5,
         tag: None,
     };
+
+    let second_sprite: SpriteSource = "
+
+        ░▓▓▓░
+        ░░░▓░
+        ░░░▓░
+        ░░░▓░
+
+        ";
+
+    let second_sprite_metadata: Metadata = Metadata {
+        color_map: HashMap::from([('░', Color::Green), ('▓', Color::Blue)]),
+        transparent: 'T',
+        height: 4,
+        width: 5,
+        tag: None,
+    };
     //stdout.flush().unwrap();
     let compiled_sprite: Sprite = match compile_sprite(smiley_sprite, smily_metadata, 1) {
         Err(why) => panic!("aspect ratio error {}", why),
         Ok(sprite) => sprite,
     };
-    /*
-    //raw calls
-    for i in 0..1 {
-        let mut framebuffer: FrameBuffer = match init_layer(50, 150, Color::White, true) {
-            Err(why) => panic!("framebuffer init failed: {}", why),
-            Ok(framebuffer) => framebuffer,
-        };
-        framebuffer_write(i, 4, 1, &compiled_sprite, &mut framebuffer);
-        //framebuffer_write(i + 20, i, 1, &compiled_sprite, &mut framebuffer);
 
-        //framerate
-        let frame_duration = time::Duration::from_millis(10);
-        thread::sleep(frame_duration);
-        execute!(stdout, terminal::Clear(terminal::ClearType::All)).unwrap();
-        push_render(framebuffer.buffer);
+    let second_comp_sprite: Sprite = match compile_sprite(second_sprite, second_sprite_metadata, 1)
+    {
+        Err(why) => panic!("aspect ratio error {}", why),
+        Ok(sprite) => sprite,
+    };
+
+    let mut renderer = Renderer::new(50, 50, Color::White);
+    let background = renderer.layerstack.add(0, 0);
+    let foreground = renderer.layerstack.add(1, 1);
+
+    for i in 0..100 {
+        renderer.layerstack.write_sprite(0 + 1, 25, &compiled_sprite, background);
+        renderer.layerstack.write_sprite(50 - 1, 25, &second_comp_sprite, foreground);
+        renderer.render_update();
     }
-    */
-
-    Ok(())
 }
