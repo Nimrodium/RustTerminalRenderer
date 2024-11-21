@@ -53,11 +53,15 @@ pub struct Metadata {
     pub tag: Option<String>,
 }
 /// Compiles a Sprite from Metadata and SpriteSource
-pub fn compile_sprite(
-    sprite_source: SpriteSource,
-    metadata: Metadata,
-    id: i32,
-) -> Result<Sprite, String> {
+/// # Parameters
+/// - `sprite_source` : human readable string visualization of sprite
+/// - `metadata` : compiliation information
+/// # Example
+/// ```
+/// let compiled_sprite : Sprite = compile_sprite(source,metadata);
+/// ```
+/// a new Sprite instance is created from source and metadata
+pub fn compile_sprite(sprite_source: SpriteSource, metadata: Metadata) -> Result<Sprite, String> {
     //sanitizes char array
     let mut valid_characters: String = metadata.color_map.keys().collect();
     valid_characters.push(metadata.transparent);
@@ -92,11 +96,11 @@ pub fn compile_sprite(
         let isrendered_bool;
         let pixel_color;
         if pixel == metadata.transparent {
-            isrendered_bool = true;
-            pixel_color = *metadata.color_map.get(&pixel).unwrap();
-        } else {
             isrendered_bool = false;
             pixel_color = Color::Black;
+        } else {
+            isrendered_bool = true;
+            pixel_color = *metadata.color_map.get(&pixel).unwrap();
         };
 
         //define new pixel object
@@ -104,7 +108,7 @@ pub fn compile_sprite(
             x: x as x_pos,
             y: y as y_pos,
             //layer: 1,
-            color: *metadata.color_map.get(&pixel).unwrap(),
+            color: pixel_color,
             isrendered: isrendered_bool,
         };
 

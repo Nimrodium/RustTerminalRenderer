@@ -5,15 +5,7 @@ use crossterm::{
     style::{self, Color, Stylize},
     terminal,
 };
-///# Stack Module
-///##   Handles commiting data to the terminal
-//use log::{info, warn};
-//use std::fs;
-//use std::path::Path;
-use std::{
-    collections::HashMap,
-    io::{self, Stdout, Write},
-};
+use std::{collections::HashMap, io};
 use std::{thread, time};
 //██
 //▆
@@ -96,7 +88,7 @@ impl FrameBuffer {
         println!("writing Layer to FrameBuffer");
         for sprite_vector in layer.buffer.iter() {
             for sprite_pixel in sprite_vector.iter() {
-                if sprite_pixel.x >= 0 && sprite_pixel.y >= 0 {
+                if sprite_pixel.x >= 0 && sprite_pixel.y >= 0 && sprite_pixel.isrendered {
                     //converts to u16
                     let raw_index: usize =
                         self.get_raw_index(sprite_pixel.x as x_pos, sprite_pixel.y as y_pos);
@@ -123,16 +115,17 @@ impl FrameBuffer {
             let x_pixel = pixel.x + x_world;
             let y_pixel = pixel.y + y_world;
             //if these are higher than the x y aspect of framebuffer then skip creation
-            if (x_pixel < self.width as i16) && (y_pixel < self.height as i16) {
-                let working_pixel: Pixel = Pixel {
-                    x: pixel.x + x_world,
-                    y: pixel.y + y_world,
-                    //layer: layer_world,
-                    color: pixel.color,
-                    isrendered: pixel.isrendered,
-                };
-                pixels.push(working_pixel);
+            if !(x_pixel < self.width as i16) && (y_pixel < self.height as i16) {
+                break;
+            }
+            let working_pixel: Pixel = Pixel {
+                x: pixel.x + x_world,
+                y: pixel.y + y_world,
+                //layer: layer_world,
+                color: pixel.color,
+                isrendered: pixel.isrendered,
             };
+            pixels.push(working_pixel);
         }
         pixels
     }
@@ -144,8 +137,9 @@ impl FrameBuffer {
     ///- `y` : target position y coordinate.
     ///# Example
     ///```
-    ///let get_raw_index(5,4,2);
-
+    ///let get_raw_index(4,2);
+    ///```
+    ///returns `self.width` * `y` + `x`
     //TODO make return option or result if position does not exist
     fn get_raw_index(&self, x: x_pos, y: x_pos) -> usize {
         let raw_index: usize = self.width as usize * y as usize + x as usize;
@@ -186,7 +180,7 @@ impl Layerstack {
             }
         }
     }
-
+    ///wipes framebuffer and layerstack buffers
     pub fn wipe_buffers(&mut self) {
         for pixel in self.framebuffer.buffer.iter_mut() {
             pixel.color = self.framebuffer.color;
@@ -201,7 +195,7 @@ impl Layerstack {
     ///
     /// # Example
     /// ```
-    /// foreground : Layer = layer_fetch(2);
+    /// foreground : Layer = fetch(2);
     /// ```
     ///foreground becomes a mutable reference to the layer with id 2
 
@@ -212,7 +206,15 @@ impl Layerstack {
             panic!("[error] layer {} does not exist", id);
         }
     }
-    /// Returns an immutable Layer from the layerstack
+    ///returns a mutable Layer from the layerstack
+    ///# Parameters
+    /// - `id` : requested layerID
+    ///
+    /// # Example
+    /// ```
+    /// foreground : Layer = fetch(2);
+    /// ```
+    ///foreground becomes an immutable reference to the layer with id 2
     fn fetch(&self, id: &LayerID) -> &Layer {
         if let Some(layer) = self.stack.get(id) {
             layer

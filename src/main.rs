@@ -13,6 +13,7 @@
 //crossterm
 mod sprite;
 mod stack;
+
 use crate::sprite::{compile_sprite, Metadata, Sprite, SpriteSource};
 use std::collections::HashMap;
 use std::{thread, time};
@@ -25,18 +26,20 @@ fn main() {
     println!("main");
 
     let smiley_sprite: SpriteSource = "
-        ░░▓▓░
-        ▓░░░▓
-        ░░░▓▓
-        ▓░░░▓
-        ░░▓▓░
+        ░░░░░░░░░░
+        ░░░░░▓▓▓▓░
+        ░▓▓░░▓▓▓▓░
+        ░░▓▓▓▓▓░░░
+        ░░░▓▓▓▓░░░
+        ░░░▓░▓░░░░
     ";
 
+    //('░', Color::Black),
     let smily_metadata: Metadata = Metadata {
-        color_map: HashMap::from([('░', Color::Black), ('▓', Color::Magenta)]),
-        transparent: 'T',
-        height: 5,
-        width: 5,
+        color_map: HashMap::from([('▓', Color::DarkGrey)]),
+        transparent: '░',
+        height: 6,
+        width: 10,
         tag: None,
     };
 
@@ -57,13 +60,12 @@ fn main() {
         tag: None,
     };
     //stdout.flush().unwrap();
-    let compiled_sprite: Sprite = match compile_sprite(smiley_sprite, smily_metadata, 1) {
+    let compiled_sprite: Sprite = match compile_sprite(smiley_sprite, smily_metadata) {
         Err(why) => panic!("aspect ratio error {}", why),
         Ok(sprite) => sprite,
     };
 
-    let second_comp_sprite: Sprite = match compile_sprite(second_sprite, second_sprite_metadata, 1)
-    {
+    let second_comp_sprite: Sprite = match compile_sprite(second_sprite, second_sprite_metadata) {
         Err(why) => panic!("aspect ratio error {}", why),
         Ok(sprite) => sprite,
     };
